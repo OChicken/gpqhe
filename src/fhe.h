@@ -49,6 +49,19 @@ struct he_ctx {
   double Bmult;     /* valid multiplication */
 };
 
+struct bootstrap_ctx {
+  //uint64_t **rp;
+  poly_rns_t *rp;
+  poly_rns_t *rpinv;
+  poly_rns_t rp1;
+  poly_rns_t rp2;
+  unsigned int *bnd;
+  unsigned int *bndinv;
+  unsigned int bnd1;
+  unsigned int bnd2;
+  unsigned int logp;
+};
+
 struct he_pk {
   poly_mpi_t p0;
   poly_mpi_t p1;
@@ -135,6 +148,10 @@ void he_rot(he_ct_t *ct, const int rot, const he_evk_t *rk);
 void he_gemv(he_ct_t *ct_dest, _Complex double *A, const he_ct_t *ct, const he_evk_t *rk);
 void he_inv(he_ct_t *ct_inv, const he_ct_t *ct, const he_evk_t *rlk, const unsigned int iter);
 void he_sqrt(he_ct_t *ct_sqrt, const he_ct_t *ct, const he_evk_t *rlk, const unsigned int iter);
+
+/* he-bootstrap.c */
+void he_bootstrapctx_init();
+void he_bootstrapctx_exit();
 
 END_DECLS
 

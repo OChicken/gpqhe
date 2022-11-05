@@ -31,7 +31,8 @@ SOURCES = \
 	he-add.c \
 	he-mult.c \
 	he-automorphism.c \
-	he-algo.c
+	he-algo.c \
+	he-bootstrap.c
 
 libgpqhe.so: $(HEADERS) $(SOURCES)
 #	$(CC) $(CFLAGS) -DRANDOM   $(SOURCES) -fPIC -shared -lgcrypt -lm -o $(TARGET)/$@

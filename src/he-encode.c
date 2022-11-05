@@ -21,8 +21,7 @@
 #include "poly.h"
 #include "fhe.h"
 #include <complex.h> /* creal, cimag, I */
-#include <math.h>    /* round, labs */
-#include <assert.h>
+#include <math.h>    /* round */
 
 BEGIN_DECLS
 
