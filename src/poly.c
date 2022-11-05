@@ -41,7 +41,7 @@ extern void invntt(uint64_t a[], const struct rns_ctx *rns);
 
 /* rns.c */
 extern void rns_decompose(uint64_t ahat[], const MPI a[], const struct rns_ctx *rns);
-extern void rns_reconstruct(MPI a[], const uint64_t ahat[], const unsigned int i, const struct rns_ctx *rns);
+extern void rns_reconstruct(MPI a, const uint64_t ahat[], const unsigned int i, const struct rns_ctx *rns);
 
 void poly_mpi_alloc(poly_mpi_t *a)
 {
@@ -98,18 +98,9 @@ void poly_mul(poly_mpi_t *r, const poly_mpi_t *a, const poly_mpi_t *b,
     ntt(bhat.coeffs, rns);
     poly_rns_mul(&rhat.coeffs[d*polyctx.n], ahat.coeffs, bhat.coeffs, rns);
     invntt(&rhat.coeffs[d*polyctx.n], rns);
-    if (d<dim-1)
-      rns=rns->next;
+    rns = (d<dim-1)? rns->next : rns;
   }
-  MPI qh = mpi_new(0);
-  mpi_fdiv(qh, NULL, q, GPQHE_TWO);
-  for (unsigned int i=0; i<polyctx.n; i++) {
-    rns_reconstruct(r->coeffs, rhat.coeffs, i, rns);
-    if (mpi_cmp(r->coeffs[i], rns->P_2)>0)
-      mpi_sub(r->coeffs[i], r->coeffs[i], rns->P);
-    mpi_smod(r->coeffs[i], q, qh);
-  }
-  mpi_release(qh);
+  poly_rns2mpi(r, &rhat, rns, q);
   poly_rns_free(&ahat);
   poly_rns_free(&bhat);
   poly_rns_free(&rhat);
@@ -121,9 +112,8 @@ void poly_rns2mpi(poly_mpi_t *r, const poly_rns_t *rhat,
   MPI qh = mpi_new(0);
   mpi_fdiv(qh, NULL, q, GPQHE_TWO);
   for (unsigned int i=0; i<polyctx.n; i++) {
-    rns_reconstruct(r->coeffs, rhat->coeffs, i, rns);
-    if (mpi_cmp(r->coeffs[i], rns->P_2)>0)
-      mpi_sub(r->coeffs[i], r->coeffs[i], rns->P);
+    rns_reconstruct(r->coeffs[i], rhat->coeffs, i, rns);
+    mpi_smod(r->coeffs[i], rns->P, rns->P_2);
     mpi_smod(r->coeffs[i], q, qh);
   }
   mpi_release(qh);

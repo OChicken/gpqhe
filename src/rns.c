@@ -51,16 +51,16 @@ void rns_decompose(uint64_t ahat[], const MPI a[], const struct rns_ctx *rns)
  * rns_reconstruct - reconstruct the i-th coefficient of the polynomial in mpi
  * domain from its RNS domain.
  * 
- * @a: polynomial in mpi domain
+ * @a: the i-th coefficient of the polynomial in mpi domain
  * @ahat: polynomial in RNS domain
  * @i: polynomial coefficient index
  * @rns: the RNS parameters of the polynomial modulus, whose size (P) is 
  * sufficient large to accommodate the polynomial modulus in mpi domain.
  */
-void rns_reconstruct(MPI a[], const uint64_t ahat[],
+void rns_reconstruct(MPI a, const uint64_t ahat[],
                      const unsigned int i, const struct rns_ctx *rns)
 {
-  mpi_set_ui(a[i], 0);
+  mpi_set_ui(a, 0);
   MPI b = mpi_new(0);
   MPI c = mpi_new(0);
   for (unsigned int d=0; d<rns->dim; d++) {
@@ -68,7 +68,7 @@ void rns_reconstruct(MPI a[], const uint64_t ahat[],
     mpi_set_ui(c, rns->phat_invmp[d]);    /* c = phat^{-1}mod pj */
     mpi_mulm(c, rns->phat[d], c, rns->P); /* c = (phat*c) mod P  */
     mpi_mulm(b, b, c, rns->P);            /* a[i] = a[i]*c mod P */
-    mpi_addm(a[i], a[i], b, rns->P);
+    mpi_addm(a, a, b, rns->P);
   }
   mpi_release(c);
   mpi_release(b);
