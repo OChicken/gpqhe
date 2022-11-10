@@ -19,7 +19,7 @@
  */
 
 #include "poly.h"
-#include "fhe.h"
+#include "gpqhe.h"
 #include <complex.h> /* creal, cimag, I */
 #include <math.h>    /* round */
 
@@ -33,7 +33,6 @@ extern struct he_ctx hectx;
 
 /* types.c */
 extern void double_to_mpi(MPI *r, long double a);
-extern double mpi_to_double(MPI a);
 
 /* canemb.c */
 void canemb(_Complex double a[], const unsigned int slots);

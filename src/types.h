@@ -39,6 +39,7 @@ _Static_assert(sizeof(uint64_t) == 8,
 #define BITS_PER_INT  32u
 #define BITS_PER_LONG 64u
 #define BITS_PER_LIMB SIZE_WIDTH
+#define UINT64MAX_PER_DBLMAX 15
 
 BEGIN_DECLS
 
@@ -47,6 +48,7 @@ typedef struct gcry_mpi *MPI;
 
 uint64_t mpi_to_u64 (MPI a);
 int64_t  mpi_to_s64 (MPI a);
+double mpi_to_double(MPI a);
 void mpi_rdiv(MPI q, const MPI a, const MPI m);
 void mpi_smod(MPI r, const MPI q, const MPI qh);
 

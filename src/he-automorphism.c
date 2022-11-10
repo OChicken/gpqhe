@@ -18,7 +18,7 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fhe.h"
+#include "gpqhe.h"
 #include <math.h>
 
 BEGIN_DECLS
@@ -49,7 +49,7 @@ static void he_swk(he_ct_t *ct,
   mpi_mul(Pql, P, ql);
   unsigned int n = polyctx.n;
   /* d1 in Rql, swk.{p0,p1} in R_PqL */
-  unsigned int dim = (mpi_get_nbits(ql)+mpi_get_nbits(hectx.PqL))/GPQHE_LOGP+1;
+  unsigned int dim = (mpi_get_nbits(ql)+mpi_get_nbits(hectx.PqL)+polyctx.logn)/GPQHE_LOGP+1;
   /* main */
   poly_rns_t d1hat, c0hat, c1hat;
   poly_rns_alloc(&d1hat, 1);

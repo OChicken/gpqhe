@@ -8,7 +8,6 @@ HEADERS = \
 	fips202.h \
 	kem.h \
 	symmetric.h \
-	fhe.h \
 	gpqhe.h
 SOURCES = \
 	types.c \

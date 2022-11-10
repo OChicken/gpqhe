@@ -18,7 +18,7 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fhe.h"
+#include "gpqhe.h"
 #include <math.h>
 
 BEGIN_DECLS
@@ -45,10 +45,10 @@ void he_show_ctx_params()
   //printf("\\_ Ring constant cM = %f\n", ctx.cM);
 
   /* Q = q0*q1*...*qL */
-  printf("\\_ Ciphertext modulus ql = q0*Delta^l:\n");
+  printf("\\_ Ciphertext modulus ql = q0*p^l:\n");
   printf("   \\_ L = %u\n", hectx.L);
   printf("   \\_ q0 (%u bits) = %#02lx\n", mpi_get_nbits(hectx.q[0]), mpi_to_u64(hectx.q[0]));
-  printf("   \\_ Delta (%u bits) = %#02lx\n", (unsigned int)log2(hectx.Delta)+1, hectx.Delta);
+  printf("   \\_ p  (%u bits) = %#02lx\n", mpi_get_nbits(hectx.p), mpi_to_u64(hectx.p));
   printf("   \\_ qL (%u bits) = ", mpi_get_nbits(hectx.q[hectx.L]));
   show_mpi(hectx.q[hectx.L]);
 
@@ -100,6 +100,7 @@ void he_show_ct_params(const struct he_ct *ct, const char *title, ...)
   printf("\\_ l  = %u\n", ct->l);
   printf("\\_ nu = %.10g (%ld bits)\n", ct->nu, (long)log2(ct->nu)+1);
   printf("\\_ B  = %f\n", ct->B);
+  printf("\\_ log(ql) = %u\n", mpi_get_nbits(hectx.q[ct->l])-1);
 }
 
 END_DECLS

@@ -201,6 +201,27 @@ void show_mpi (MPI a)
   gcry_sexp_release(data);
 }
 
+#if 0
+void show_mpi_(MPI a)
+{
+  size_t length = mpi_get_nbits (a);
+  unsigned int limbs = length/BITS_PER_LONG+1;
+  uint64_t *b = malloc(limbs*sizeof(uint64_t));
+  for (unsigned int i=0; i<limbs; i++) {
+    b[i] = 0;
+    if (i<limbs-1)
+      for (unsigned int j=0; j<BITS_PER_LONG; j++)
+        b[i] += (uint64_t)mpi_test_bit(a,i*BITS_PER_LONG+j)<<j;
+    else
+      for (unsigned int j=0; j<length%BITS_PER_LONG; j++)
+        b[i] += (uint64_t)mpi_test_bit(a,i*BITS_PER_LONG+j)<<j;
+  }
+  for (unsigned int i=0; i<limbs; i++)
+    printf("%lx\n", b[i]);
+  free(b);
+}
+#endif
+
 void double_to_mpi(MPI *r, long double a)
 {
   int sign;

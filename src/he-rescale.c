@@ -18,7 +18,7 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fhe.h"
+#include "gpqhe.h"
 #include <math.h>
 
 BEGIN_DECLS

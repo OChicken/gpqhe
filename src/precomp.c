@@ -20,7 +20,7 @@
 
 #include "poly.h"
 #include "kem.h"
-#include "fhe.h"
+#include "gpqhe.h"
 #include <stdbool.h>
 #include <stdio.h>        /* fprintf */
 #include <stdlib.h>       /* malloc, abort, rand */
@@ -338,6 +338,9 @@ void polyctx_init(unsigned int logn, MPI q)
   polyctx.logqub = he_std_params(polyctx.logn);
   if ((logn<10)|| (15<logn))
     polyctx.logqub = polyctx.logq; /* dedicated for KAT of HEAAN and/or personal designed parameters */
+  /* Comment the following for internal test. Bear in mind that there is a constraint 
+    upon degree n and modulus q, q should not arbitrary large to guarantee security. */
+#if 1
   if (polyctx.logq > polyctx.logqub) {
     errno = EINVAL;
     fprintf(stderr, "\033[1m\033[31merror:\033[0m \033[1m%s\033[0m. "
@@ -345,6 +348,7 @@ void polyctx_init(unsigned int logn, MPI q)
       "Must guarantee log(q)<=log(qub).\n", strerror(errno));
     abort();
   }
+#endif
   polyctx.q = mpi_new(0);
   mpi_set(polyctx.q, q);
   polyctx.logR  = BITS_PER_LONG;
@@ -381,10 +385,9 @@ void polyctx_init(unsigned int logn, MPI q)
 
 static void qtable_init(const MPI qL)
 {
-  MPI Delta = mpi_set_ui(NULL, hectx.Delta);
   MPI q = mpi_copy(qL);
   unsigned int logq = mpi_get_nbits(q)-1;
-  unsigned int logDelta = mpi_get_nbits(Delta)-1;
+  unsigned int logDelta = mpi_get_nbits(hectx.p)-1;
   hectx.L  = ceil(logq/logDelta);
   hectx.q  = gcry_malloc((hectx.L+1)*sizeof(MPI));
   hectx.qh = gcry_malloc((hectx.L+1)*sizeof(MPI));
@@ -393,16 +396,15 @@ static void qtable_init(const MPI qL)
     hectx.qh[l] = mpi_new(0);
     mpi_set(hectx.q[l], q);
     mpi_fdiv(hectx.qh[l], NULL, q, GPQHE_TWO);
-    mpi_fdiv(q, NULL, q, Delta);
+    mpi_fdiv(q, NULL, q, hectx.p);
   }
-  hectx.dim = mpi_get_nbits(hectx.q[hectx.L])/GPQHE_LOGP+1;
+  hectx.dim = (mpi_get_nbits(hectx.q[hectx.L])+polyctx.logn)/GPQHE_LOGP+1;
   struct rns_ctx *rns=polyctx.rns;
   for (unsigned int d=0; d<hectx.dim-1; d++, rns=rns->next);
   hectx.P   = mpi_copy(rns->P);
   hectx.PqL = mpi_new(0);
   mpi_mul(hectx.PqL, hectx.P, qL);
-  hectx.dimevk = (mpi_get_nbits(hectx.q[hectx.L])+mpi_get_nbits(hectx.PqL))/GPQHE_LOGP+1;
-  mpi_release(Delta);
+  hectx.dimevk = (mpi_get_nbits(hectx.q[hectx.L])+mpi_get_nbits(hectx.PqL)+polyctx.logn)/GPQHE_LOGP+1;
   mpi_release(q);
 }
 
@@ -442,9 +444,8 @@ void hectx_init(unsigned int logn, MPI q, unsigned int slots, uint64_t Delta)
     abort();
   }
   hectx.slots = slots;
-  hectx.Delta = Delta;
-  hectx.p = mpi_new(0);
-  mpi_set_ui(hectx.p, Delta);
+  hectx.Delta = (double)Delta;
+  hectx.p = mpi_set_ui(NULL, Delta);
   qtable_init(q);
   bounds_init(polyctx.n);
   /* bounds */

@@ -18,7 +18,7 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fhe.h"
+#include "gpqhe.h"
 #include <math.h>
 
 BEGIN_DECLS
@@ -48,7 +48,7 @@ static void he_relin(he_ct_t *ct,
   mpi_mul(Pql, P, ql);
   unsigned int n = polyctx.n;
   /* d2 in Rql, rlk.{p0,p1} in R_PqL */
-  unsigned int dim = (mpi_get_nbits(ql)+mpi_get_nbits(hectx.PqL))/GPQHE_LOGP+1;
+  unsigned int dim = (mpi_get_nbits(ql)+mpi_get_nbits(hectx.PqL)+polyctx.logn)/GPQHE_LOGP+1;
   /* decompose d2 */
   poly_rns_t d2hat, c0hat, c1hat;
   poly_rns_alloc(&d2hat, 1);
@@ -96,7 +96,7 @@ void he_mul(he_ct_t *ct, const he_ct_t *ct1, const he_ct_t *ct2, const he_evk_t 
   /* local variables */
   MPI q  = mpi_copy(hectx.q [ct->l]);
   unsigned int n = polyctx.n;
-  unsigned int dim = (mpi_get_nbits(q)*2)/GPQHE_LOGP+1;
+  unsigned int dim = (mpi_get_nbits(q)*2+polyctx.logn)/GPQHE_LOGP+1;
   /* alloc */
   poly_mpi_t d0, d1, d2;
   poly_mpi_alloc(&d0);
@@ -165,7 +165,7 @@ void he_mulpt(he_ct_t *dest, const he_ct_t *src, const he_pt_t *pt)
   /* local varables */
   MPI q  = mpi_copy(hectx.q [dest->l]);
   unsigned int n = polyctx.n;
-  unsigned int dim = (mpi_get_nbits(q)+log2(pt->nu))/GPQHE_LOGP+1;
+  unsigned int dim = (mpi_get_nbits(q)+log2(pt->nu)+polyctx.logn)/GPQHE_LOGP+1;
   /* alloc */
   poly_rns_t pthat, c0hat, c1hat;
   poly_rns_alloc(&pthat, 1);

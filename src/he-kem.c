@@ -18,7 +18,7 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fhe.h"
+#include "gpqhe.h"
 
 BEGIN_DECLS
 
@@ -80,7 +80,7 @@ static void he_genswk(he_evk_t *swk, const poly_mpi_t *sp, const poly_mpi_t *sk)
   MPI two  = mpi_set_ui(NULL, 2);
   mpi_fdiv(PqLh, NULL, PqL, two);
   unsigned int n = polyctx.n;
-  unsigned int dim = mpi_get_nbits(PqL)/GPQHE_LOGP+1;
+  unsigned int dim = (mpi_get_nbits(PqL)+polyctx.logn)/GPQHE_LOGP+1;
   /* sample error for swk */
   poly_mpi_t e;
   poly_mpi_alloc(&e);

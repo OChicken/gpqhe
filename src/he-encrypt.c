@@ -19,7 +19,7 @@
  */
 
 #include "poly.h"
-#include "fhe.h"
+#include "gpqhe.h"
 
 BEGIN_DECLS
 
