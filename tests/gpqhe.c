@@ -86,9 +86,81 @@ blas_dzrot(_Complex double y[], const _Complex double x[], const unsigned int le
   }
 }
 
+static inline void
+blas_dzinv(_Complex double r[], const _Complex double x[], const unsigned int len, const unsigned int iter)
+{
+  for (unsigned int i=0; i<len; i++) {
+    _Complex double an, bn;
+    an = 2-x[i];
+    bn = 1-x[i];
+    for (unsigned int _=0; _<iter; _++) {
+      bn = bn*bn;
+      an = an*(bn+1);
+    }
+    r[i] = an;
+  }
+}
+
+static inline void
+blas_dinv(double r[], const double x[], const unsigned int len, const unsigned int iter)
+{
+  for (unsigned int i=0; i<len; i++) {
+    double an, bn;
+    an = 2-x[i];
+    bn = 1-x[i];
+    for (unsigned int _=0; _<iter; _++) {
+      bn = bn*bn;
+      an = an*(bn+1);
+    }
+    r[i] = an;
+  }
+}
+
+static inline void
+comp(_Bool cmp[], const _Complex double a0[], const _Complex double b0[], const unsigned int len,
+  const unsigned int d1, const unsigned int d2, const int alpha)
+{
+  /* iteration parameters */
+  const unsigned int m = 2;
+  const double c = 1+pow(2,-alpha);
+  const unsigned int t = log2(alpha/log2(c));
+  double a[len], b[len], inv[len];
+  for (unsigned int i=0; i<len; i++)
+    a[i] = (a0[i]+b0[i])/2;
+  blas_dinv(a, a, len, d2);
+  for (unsigned int i=0; i<len; i++) {
+    a[i] *= (a0[i])/2;
+    b[i] = 1-a[i];
+  }
+  for (unsigned int _=0; _<t; _++) {
+    for (unsigned int i=0; i<len; i++)
+      inv[i] = pow(a[i], m)+pow(b[i], m);
+    blas_dinv(inv, inv, len, d1);
+    for (unsigned int i=0; i<len; i++) {
+      a[i] = pow(a[i], m)*inv[i];
+      b[i] = 1-a[i];
+    }
+  }
+  for (unsigned int i=0; i<len; i++)
+    cmp[i] = (unsigned int)round(creal(a[i]));
+}
+
+static unsigned int logn;
+static unsigned int logq;
+static unsigned int logDelta;
+static char key[2];
 static unsigned int slots;
-static he_pk_t pk;
+static uint64_t Delta;
 static poly_mpi_t sk;
+static he_pk_t pk;
+static he_evk_t rlk;
+static he_evk_t ck;
+static he_pt_t pt;
+static he_ct_t ct;
+static unsigned int idx;
+static unsigned int start;
+static unsigned int end;
+static unsigned int alpha;
 static double diff;
 static unsigned int iter;
 
@@ -133,8 +205,6 @@ TEST_DO("canemb_norm");
     m0[i] = m1[i]*m2[i];
   he_ecd(&pt1, m1);
   he_ecd(&pt2, m2);
-  /* 按照论文的意思, Delta, 即nu, 应该大于等于canemb_norm */
-  /* 实际上下列语句的输出结果取决于输入数据. 若输入数据小于1(可通过归一化手段), 则几乎肯定是大于的 */
   if (hectx.Delta>canemb_norm(m1, hectx.Delta))
     printf("Delta > canemb_norm_(m1, Delta)\n");
   else
@@ -173,7 +243,7 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_enc(const char *key)
+static void test_enc()
 {
 TEST_BEGIN();
   he_pt_t pt; he_alloc_pt(&pt);
@@ -222,7 +292,7 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_add(const char *key)
+static void test_add()
 {
 TEST_BEGIN();
   he_pt_t pt, pt1, pt2;
@@ -349,18 +419,17 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_mul(const char *key)
+static void test_mul()
 {
 TEST_BEGIN();
-  struct he_pt pt, pt1, pt2;
+  he_pt_t pt1, pt2;
   he_alloc_pt(&pt);
   he_alloc_pt(&pt1);
   he_alloc_pt(&pt2);
-  struct he_ct ct, ct1, ct2;
+  he_ct_t ct1, ct2;
   he_alloc_ct(&ct);
   he_alloc_ct(&ct1);
   he_alloc_ct(&ct2);
-  he_evk_t rlk;
   he_alloc_evk(&rlk);
   _Complex double m[slots], m0[slots], m1[slots], m2[slots];
   sample_z01vec(m1, slots);
@@ -467,15 +536,13 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_conj(const char *key)
+static void test_conj()
 {
 TEST_BEGIN();
-  he_pt_t pt;
   he_alloc_pt(&pt);
-  he_ct_t ct, ct0;
+  he_ct_t ct0;
   he_alloc_ct(&ct);
   he_alloc_ct(&ct0);
-  he_evk_t ck;
   he_alloc_evk(&ck);
   _Complex double m[slots], m0[slots];
   sample_z01vec(m0, slots);
@@ -523,7 +590,7 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_rot(const char *key)
+static void test_rot()
 {
 TEST_BEGIN();
   he_pt_t pt;
@@ -572,7 +639,7 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_gemv(const char *key)
+static void test_gemv()
 {
 TEST_BEGIN();
   he_pt_t pt;
@@ -618,15 +685,167 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_inv(const char *key)
+static void test_sum()
 {
 TEST_BEGIN();
-  he_pt_t pt;
   he_alloc_pt(&pt);
-  he_ct_t ct_inv, ct;
-  he_alloc_ct(&ct_inv);
+  he_ct_t ct_sum;
   he_alloc_ct(&ct);
-  he_evk_t rlk;
+  he_alloc_ct(&ct_sum);
+  he_evk_t rk[hectx.slots];
+  for (unsigned int rot=0; rot<hectx.slots; rot++)
+    he_alloc_evk(&rk[rot]);
+  _Complex double m[slots], m0[slots], sum=0, sum0=0;
+  sample_z01vec(m0, slots);
+  for (unsigned int i=0; i<slots; i++)
+    sum0 += m0[i];
+
+TEST_DO("gen rk");
+  he_genrk(rk, &sk);
+TEST_DONE();
+
+  memcpy(m, m0, sizeof(m0));
+  he_ecd(&pt, m);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+TEST_DO("sum");
+  he_sum(&ct_sum, &ct, rk);
+  he_dec(&pt, &ct_sum, &sk);
+  he_dcd(m, &pt);
+  sum = m[0];
+  diff = cabs(sum-sum0);
+  TEST_PLACEHOLDER();
+  printf("diff = %g\n", diff);
+  ASSERT(diff<1e-5);
+TEST_DONE();
+
+TEST_DO("exit");
+  for (unsigned int rot=0; rot<hectx.slots; rot++)
+    he_free_evk(&rk[rot]);
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_ct(&ct_sum);
+TEST_DONE();
+
+TEST_END();
+}
+
+static void test_idx(const unsigned int idx)
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct_sum;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct_sum);
+  he_evk_t rk[hectx.slots];
+  for (unsigned int rot=0; rot<hectx.slots; rot++)
+    he_alloc_evk(&rk[rot]);
+  _Complex double m[slots], m0[slots];
+  sample_z01vec(m0, slots);
+
+TEST_DO("gen rk");
+  he_genrk(rk, &sk);
+TEST_DONE();
+
+  memcpy(m, m0, sizeof(m0));
+  he_ecd(&pt, m);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+TEST_DO("idx=1");
+  he_idx(&ct_sum, &ct, idx, rk);
+  he_dec(&pt, &ct_sum, &sk);
+  he_dcd(m, &pt);
+  diff = cabs(m[idx]-m0[idx]);
+  TEST_PLACEHOLDER();
+  printf("diff = %g\n", diff);
+  ASSERT(diff<1e-5);
+TEST_DONE();
+
+TEST_DO("exit");
+  for (unsigned int rot=0; rot<hectx.slots; rot++)
+    he_free_evk(&rk[rot]);
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_ct(&ct_sum);
+TEST_DONE();
+
+TEST_END();
+}
+
+static void test_nrm2()
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct_nrm2;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct_nrm2);
+  he_alloc_evk(&rlk);
+  he_alloc_evk(&ck);
+  he_evk_t rk[hectx.slots];
+  for (unsigned int rot=0; rot<hectx.slots; rot++)
+    he_alloc_evk(&rk[rot]);
+  _Complex double m[slots], m0[slots], sum=0, sum0=0;
+  sample_z01vec(m0, slots);
+  for (unsigned int i=0; i<slots; i++)
+    sum0 += m0[i]*conj(m0[i]);
+
+TEST_DO("gen rlk");
+  he_genrlk(&rlk, &sk);
+TEST_DONE();
+TEST_DO("gen ck");
+  he_genck(&ck, &sk);
+TEST_DONE();
+TEST_DO("gen rk");
+  he_genrk(rk, &sk);
+TEST_DONE();
+
+  memcpy(m, m0, sizeof(m0));
+  he_ecd(&pt, m);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+TEST_DO("nrm2");
+  he_nrm2(&ct_nrm2, &ct, &rlk, &ck, rk);
+  he_show_ct_params(&ct_nrm2, "ct_nrm2");
+  he_dec(&pt, &ct_nrm2, &sk);
+  he_dcd(m, &pt);
+  sum = m[0];
+  diff = cabs(sum-sum0);
+  TEST_PLACEHOLDER();
+  printf("diff = %g\n", diff);
+  ASSERT(diff<1e-5);
+  TEST_PLACEHOLDER();
+  printf("norm2=(%f,%f)\n", creal(sum), cimag(sum));
+TEST_DONE();
+
+TEST_DO("exit");
+  for (unsigned int rot=0; rot<hectx.slots; rot++)
+    he_free_evk(&rk[rot]);
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_evk(&rlk);
+  he_free_evk(&ck);
+  he_free_ct(&ct_nrm2);
+TEST_DONE();
+
+TEST_END();
+}
+
+static void test_inv()
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct_inv;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct_inv);
   he_alloc_evk(&rlk);
   _Complex double m[slots], m0[slots], minv[slots];
   sample_z01vec(m0, slots);
@@ -641,16 +860,7 @@ TEST_DONE();
 
   memcpy(m, m0, sizeof(m0));
 TEST_DO("raw");
-  for (unsigned int i=0; i<slots; i++) {
-    _Complex double an, bn;
-    an = 2-m[i];
-    bn = 1-m[i];
-    for (unsigned int _=0; _<iter; _++) {
-      bn = bn*bn;
-      an = an*(bn+1);
-    }
-    m[i] = an;
-  }
+  blas_dzinv(m, m0, slots, iter);
   CHECK_DIFF(m, minv);
 TEST_DONE();
 
@@ -677,7 +887,309 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_sqrt(const char *key)
+static void test_exp()
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct_exp;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct_exp);
+  he_alloc_evk(&rlk);
+  _Complex double m[slots], m0[slots], mexp[slots];
+  _Complex double a = 2*GPQHE_PI*I/Delta;
+  sample_z01vec(m0, slots);
+  for (unsigned int i=0; i<slots; i++) {
+    m0[i] *= a;
+    mexp[i] = cexp(m0[i]);
+  }
+
+TEST_DO("gen rlk");
+  he_genrlk(&rlk, &sk);
+TEST_DONE();
+
+  memcpy(m, m0, sizeof(m0));
+  he_ecd(&pt, m);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+TEST_DO("exp(2*pi*m/Delta)");
+  he_exp(&ct_exp, a, &ct, &rlk, iter);
+  he_show_ct_params(&ct_exp, "ct_exp");
+  he_dec(&pt, &ct_exp, &sk);
+  he_dcd(m, &pt);
+  CHECK_DIFF(m, mexp);
+TEST_DONE();
+
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_ct(&ct_exp);
+  he_free_evk(&rlk);
+
+TEST_END();
+}
+
+static void test_sigmoid()
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct_sigmoid;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct_sigmoid);
+  he_alloc_evk(&rlk);
+  _Complex double m[slots], m0[slots], msigmoid[slots];
+  sample_z01vec(m0, slots);
+TEST_DO("gen rlk");
+  he_genrlk(&rlk, &sk);
+TEST_DONE();
+
+TEST_DO("1/(1+e^(-x)) (complex)");
+  for (unsigned int i=0; i<slots; i++) {
+    m0[i] /=10;
+    msigmoid[i] = 1/(1+cexp(-m0[i]));
+  }
+
+  memcpy(m, m0, sizeof(m0));
+  he_ecd(&pt, m);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+  he_sigmoid(&ct_sigmoid, &ct, &rlk);
+  he_show_ct_params(&ct_sigmoid, "ct_sigmoid");
+  he_dec(&pt, &ct_sigmoid, &sk);
+  he_dcd(m, &pt);
+  CHECK_DIFF(m, msigmoid);
+TEST_DONE();
+
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_ct(&ct_sigmoid);
+  he_free_evk(&rlk);
+
+TEST_END();
+}
+
+static void test_log()
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct_log;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct_log);
+  he_alloc_evk(&rlk);
+  _Complex double m[slots], m0[slots], mraw[slots], mlog[slots];
+  sample_z01vec(m0, slots);
+TEST_DO("gen rlk");
+  he_genrlk(&rlk, &sk);
+TEST_DONE();
+
+TEST_DO("log(x), x near 1");
+  for (unsigned int i=0; i<slots; i++) {
+    m0[i] = creal(m0[i])/100000;
+    double x = creal(m0[i]);
+    mlog[i] = log(1+creal(m0[i]));
+    mraw[i] = (x/9)*(9+(9./3)*pow(x,2)+(9./5)*pow(x,4)+(9./7)*pow(x,6)+pow(x,8))
+       +(-x/10)*(10+(10./4)*pow(x,2)+(10./6)*pow(x,4)+(10./8)*pow(x,6)+pow(x,8));
+    printf("%.10e %.10e \n", creal(m0[i]), creal(mlog[i]));
+  }
+  CHECK_DIFF(mraw, mlog);
+
+  memcpy(m, m0, sizeof(m0));
+  he_ecd(&pt, m);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+  he_log(&ct_log, &ct, &rlk);
+  he_show_ct_params(&ct_log, "ct_log");
+  he_dec(&pt, &ct_log, &sk);
+  he_dcd(m, &pt);
+  CHECK_DIFF(m, mlog);
+  CHECK_DIFF(m, mraw);
+TEST_DONE();
+
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_ct(&ct_log);
+  he_free_evk(&rlk);
+
+TEST_END();
+}
+
+static void test_cmp(const unsigned int alpha)
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct1, ct2, ct_cmp;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct1);
+  he_alloc_ct(&ct2);
+  he_alloc_ct(&ct_cmp);
+  he_alloc_evk(&rlk);
+#if 1
+TEST_DO("gen rlk");
+  he_genrlk(&rlk, &sk);
+TEST_DONE();
+#endif
+
+  _Complex double m[slots], m0[slots], ma[slots], mb[slots];
+  sample_z01vec(m0, slots);
+  sample_z01vec(m0, slots);
+  for (unsigned int i=0; i<slots; i++) {
+    ma[i] = creal(m0[i])+0.5;
+    mb[i] = cimag(m0[i])+0.5;
+  }
+
+  memcpy(m, m0, sizeof(m0));
+TEST_DO("raw");
+  _Bool cmp[slots];
+  comp(cmp, ma, mb, slots, iter, iter, alpha);
+  for (unsigned int i=0; i<slots; i++)
+    ASSERT(cmp[i]==((creal(ma[i])>creal(mb[i]))? 1:0));
+TEST_DONE();
+
+TEST_DO("cmp");
+  he_ecd(&pt, ma);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct1, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct1, &pt, &pk);
+  he_ecd(&pt, mb);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct2, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct2, &pt, &pk);
+  he_cmp(&ct_cmp, &ct1, &ct2, &rlk, iter, alpha);
+  he_show_ct_params(&ct_cmp, "ct_cmp");
+  he_dec(&pt, &ct_cmp, &sk);
+  he_dcd(m, &pt);
+  for (unsigned int i=0; i<slots; i++)
+    cmp[i] = round(creal(m[i]));
+  for (unsigned int i=0; i<slots; i++)
+    ASSERT(cmp[i]==((creal(ma[i])>creal(mb[i]))? 1:0));
+TEST_DONE();
+
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_ct(&ct1);
+  he_free_ct(&ct2);
+  he_free_ct(&ct_cmp);
+  he_free_evk(&rlk);
+
+TEST_END();
+}
+
+static void test_coeff2slot()
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct0, ct1;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct0);
+  he_alloc_ct(&ct1);
+  he_alloc_evk(&ck);
+  he_evk_t rk[hectx.slots];
+  for (unsigned int rot=0; rot<hectx.slots; rot++)
+    he_alloc_evk(&rk[rot]);
+  _Complex double m[slots], m0[slots], mr[slots], mi[slots], mr0[slots], mi0[slots];
+  sample_z01vec(m0, slots);
+  for (unsigned int i=0; i<slots; i++)
+    m0[i] /= Delta;
+  memcpy(m, m0, sizeof(m0));
+  he_ecd(&pt, m);
+  /* also encode, but not send to mpi */
+  invcanemb(m, hectx.slots);
+  for (unsigned int i=0; i<slots; i++) {
+    mr0[i] = creal(m[i])*Delta;
+    mi0[i] = cimag(m[i])*Delta;
+  }
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+  he_bootstrapctx_init();
+
+TEST_DO("gen ck");
+  he_genck(&ck, &sk);
+TEST_DONE();
+
+TEST_DO("gen rk");
+  he_genrk(rk, &sk);
+TEST_DONE();
+
+#if 1
+TEST_DO("coefficient to slots");
+  he_coeff2slot(&ct0, &ct1, &ct, &ck, rk);
+  he_dec(&pt, &ct0, &sk);
+  he_dcd(mr, &pt);
+  he_dec(&pt, &ct1, &sk);
+  he_dcd(mi, &pt);
+  CHECK_DIFF(mr, mr0);
+  CHECK_DIFF(mi, mi0);
+TEST_DONE();
+#endif
+
+  he_bootstrapctx_exit();
+  printf("%s %u\n", __func__, __LINE__);
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_ct(&ct0);
+  he_free_ct(&ct1);
+TEST_END();
+}
+
+static void test_rlsin()
+{
+TEST_BEGIN();
+  he_alloc_pt(&pt);
+  he_ct_t ct_new;
+  he_alloc_ct(&ct);
+  he_alloc_ct(&ct_new);
+  he_alloc_evk(&rlk);
+  he_alloc_evk(&ck);
+  _Complex double m[slots], m0[slots];
+  _Complex double a = 2*GPQHE_PI*I/Delta;
+  sample_z01vec(m0, slots);
+  for (unsigned int i=0; i<slots; i++)
+    m0[i] /= Delta;
+
+TEST_DO("gen rlk");
+  he_genrlk(&rlk, &sk);
+TEST_DONE();
+
+TEST_DO("gen ck");
+  he_genck(&ck, &sk);
+TEST_DONE();
+
+  memcpy(m, m0, sizeof(m0));
+  he_ecd(&pt, m);
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+TEST_DO("(1/(2*pi))*sin(2*pi*m/Delta)");
+  he_rlsin(&ct_new, a, &ct, &rlk, &ck, iter);
+  he_show_ct_params(&ct_new, "ct_new");
+  he_dec(&pt, &ct_new, &sk);
+  he_dcd(m, &pt);
+  CHECK_DIFF(m, m0);
+TEST_DONE();
+
+  he_free_pt(&pt);
+  he_free_ct(&ct);
+  he_free_ct(&ct_new);
+  he_free_evk(&rlk);
+  he_free_evk(&ck);
+TEST_END();
+}
+
+static void test_sqrt()
 {
 TEST_BEGIN();
   he_pt_t pt;
@@ -685,7 +1197,6 @@ TEST_BEGIN();
   he_ct_t ct_sqrt, ct;
   he_alloc_ct(&ct);
   he_alloc_ct(&ct_sqrt);
-  he_evk_t rlk;
   he_alloc_evk(&rlk);
   _Complex double m[slots], m0[slots], msqrt[slots];
   sample_z01vec(m0, slots);
@@ -736,8 +1247,25 @@ TEST_DONE();
 TEST_END();
 }
 
-void set(unsigned int *logn, unsigned int *logq, unsigned int *slots,
-  unsigned int *logDelta, unsigned int *iter, int argc, char *argv[])
+static void test_bootstrap()
+{
+TEST_BEGIN();
+
+  he_bootstrapctx_init();
+  printf("%s %u\n", __func__, __LINE__);
+
+  if (!strcmp(key, "sk"))
+    he_enc_sk(&ct, &pt, &sk);
+  if (!strcmp(key, "pk"))
+    he_enc_pk(&ct, &pt, &pk);
+
+  printf("%s %u\n", __func__, __LINE__);
+  he_bootstrapctx_exit();
+
+TEST_END();
+}
+
+void set_params(int argc, char *argv[])
 {
   if ((argc==1) || (argc==2&&strcmp(argv[1], "ecd"))) {
     fprintf(stderr, "usage: %s [ecd/enc/add/mul/conj/rot/gemv/inv] [sk/pk] "
@@ -746,37 +1274,53 @@ void set(unsigned int *logn, unsigned int *logq, unsigned int *slots,
   }
   if (!strcmp(argv[1], "ecd"))
     return;
-  unsigned int idx=3; /* start index of parameter chosen */
-  while (argv[idx]) {
-    if (!strncmp(argv[idx], "--logn=", 7))
-      *logn=atoi(argv[idx]+7), printf("argv[%u]=%s %u\n", idx, argv[idx], __LINE__), idx++;
-    else if (!strncmp(argv[idx], "--logq=", 7))
-      *logq=atoi(argv[idx]+7), idx++;
-    else if (!strncmp(argv[idx], "--slots=", 8))
-      *slots=atoi(argv[idx]+8), idx++;
-    else if (!strncmp(argv[idx], "--logDelta=", 11))
-      *logDelta=atoi(argv[idx]+11), idx++;
-    else if (!strncmp(argv[idx], "--iter=", 7))
-      *iter=atoi(argv[idx]+7), idx++;
+  strcpy(key, argv[2]);
+  if ((!strcmp(argv[1], "inv"))
+    ||(!strcmp(argv[1], "sqrt"))
+    ||(!strcmp(argv[1], "exp"))
+    ||(!strcmp(argv[1], "sigmoid"))
+    ||(!strcmp(argv[1], "log"))
+    ||(!strcmp(argv[1], "cmp"))
+    ||(!strcmp(argv[1], "rlsin"))) {
+    logq  = 438;
+    slots = 4;
+    logDelta = 30;
+    iter  = 5;
+  }
+  unsigned int argidx=3; /* start index of parameter chosen */
+  while (argv[argidx]) {
+    if (!strncmp(argv[argidx], "--logn=", 7))
+      logn=atoi(argv[argidx]+7), argidx++;
+    else if (!strncmp(argv[argidx], "--logq=", 7))
+      logq=atoi(argv[argidx]+7), argidx++;
+    else if (!strncmp(argv[argidx], "--slots=", 8))
+      slots=atoi(argv[argidx]+8), argidx++;
+    else if (!strncmp(argv[argidx], "--logDelta=", 11))
+      logDelta=atoi(argv[argidx]+11), argidx++;
+    else if (!strncmp(argv[argidx], "--iter=", 7))
+      iter=atoi(argv[argidx]+7), argidx++;
+    else if (!strncmp(argv[argidx], "--alpha=", 8))
+      alpha=atoi(argv[argidx]+8), argidx++;
+    else if (!strncmp(argv[argidx], "--idx=", 6))
+      idx=atoi(argv[argidx]+6), argidx++;
+    else if (!strncmp(argv[argidx], "--start=", 8))
+      start=atoi(argv[argidx]+8), argidx++;
+    else if (!strncmp(argv[argidx], "--end=", 6))
+      end=atoi(argv[argidx]+6), argidx++;
   }
 }
 
 int main(int argc, char *argv[])
 {
   MPI q = mpi_set_ui(NULL, 1);
-  unsigned int logn = 14;
-  unsigned int logq = 220;
-  unsigned int logDelta = 50;
+  /* default params */
+  logn = 14;
+  logq = 220;
+  logDelta = 50;
   slots = 64;
-  if (!strcmp(argv[1], "inv")) {
-    logq  = 438;
-    slots = 4;
-    logDelta = 40; /* 30 */
-    iter  = 7;     /* 12 */
-  }
-  set(&logn, &logq, &slots, &logDelta, &iter, argc, argv);
+  set_params(argc, argv);
   mpi_lshift(q, q, logq);
-  uint64_t Delta = 1UL<<logDelta;
+  Delta = 1UL<<logDelta;
   hectx_init(logn, q, slots, Delta);
   he_show_ctx_params();
   /* init keys */
@@ -789,21 +1333,41 @@ int main(int argc, char *argv[])
   }
   he_keypair(&pk, &sk);
   if (!strcmp(argv[1], "enc"))
-    test_enc (argv[2]);
+    test_enc ();
   if (!strcmp(argv[1], "add"))
-    test_add (argv[2]);
+    test_add ();
   if (!strcmp(argv[1], "mul"))
-    test_mul (argv[2]);
+    test_mul ();
   if (!strcmp(argv[1], "conj"))
-    test_conj(argv[2]);
+    test_conj();
   if (!strcmp(argv[1], "rot"))
-    test_rot (argv[2]);
+    test_rot ();
   if (!strcmp(argv[1], "gemv"))
-    test_gemv(argv[2]);
+    test_gemv();
+  if (!strcmp(argv[1], "sum"))
+    test_sum ();
+  if (!strcmp(argv[1], "idx"))
+    test_idx(idx);
+  if (!strcmp(argv[1], "nrm2"))
+    test_nrm2();
   if (!strcmp(argv[1], "inv"))
-    test_inv (argv[2]);
+    test_inv ();
+  if (!strcmp(argv[1], "exp"))
+    test_exp ();
+  if (!strcmp(argv[1], "sigmoid"))
+    test_sigmoid();
+  if (!strcmp(argv[1], "log"))
+    test_log();
+  if (!strcmp(argv[1], "cmp"))
+    test_cmp(alpha);
+  if (!strcmp(argv[1], "coeff2slot"))
+    test_coeff2slot();
+  if (!strcmp(argv[1], "rlsin"))
+    test_rlsin();
   if (!strcmp(argv[1], "sqrt"))
-    test_sqrt(argv[2]);
+    test_sqrt();
+  if (!strcmp(argv[1], "bootstrap"))
+    test_bootstrap();
 
 release:
   /* release */
