@@ -18,8 +18,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fhe.h"
-#include <pmu.h>
+#include "../src/gpqhe.h"
+#include "../pmu/pmu.h"
 #include <complex.h>
 #include <math.h>
 
@@ -173,7 +173,7 @@ static unsigned int iter;
 static void test_ecd()
 {
 TEST_BEGIN();
-  he_pt_t pt, pt1, pt2;
+  he_pt_t pt1, pt2;
   he_alloc_pt(&pt);
   he_alloc_pt(&pt1);
   he_alloc_pt(&pt2);
@@ -246,10 +246,10 @@ TEST_END();
 static void test_enc()
 {
 TEST_BEGIN();
-  he_pt_t pt; he_alloc_pt(&pt);
-  he_pk_t pk; he_alloc_pk(&pk);
-  he_ct_t ct; he_alloc_ct(&ct);
-  poly_mpi_t sk;   he_alloc_sk(&sk);
+  he_alloc_pt(&pt);
+  he_alloc_pk(&pk);
+  he_alloc_ct(&ct);
+  he_alloc_sk(&sk);
   _Complex double m[slots], m0[slots];
   sample_z01vec(m, slots);
   memcpy(m0, m, sizeof(m));
@@ -295,11 +295,11 @@ TEST_END();
 static void test_add()
 {
 TEST_BEGIN();
-  he_pt_t pt, pt1, pt2;
+  he_pt_t pt1, pt2;
   he_alloc_pt(&pt);
   he_alloc_pt(&pt1);
   he_alloc_pt(&pt2);
-  he_ct_t ct, ct1, ct2;
+  he_ct_t ct1, ct2;
   he_alloc_ct(&ct);
   he_alloc_ct(&ct1);
   he_alloc_ct(&ct2);
@@ -593,9 +593,8 @@ TEST_END();
 static void test_rot()
 {
 TEST_BEGIN();
-  he_pt_t pt;
   he_alloc_pt(&pt);
-  he_ct_t ct, ct0;
+  he_ct_t ct0;
   he_alloc_ct(&ct);
   he_alloc_ct(&ct0);
   he_evk_t rk[hectx.slots];
@@ -642,7 +641,6 @@ TEST_END();
 static void test_gemv()
 {
 TEST_BEGIN();
-  he_pt_t pt;
   he_alloc_pt(&pt);
   he_ct_t ct_Av, ct_v;
   he_alloc_ct(&ct_Av);
@@ -733,7 +731,7 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_idx(const unsigned int idx)
+static void test_idx()
 {
 TEST_BEGIN();
   he_alloc_pt(&pt);
@@ -1020,7 +1018,7 @@ TEST_DONE();
 TEST_END();
 }
 
-static void test_cmp(const unsigned int alpha)
+static void test_cmp()
 {
 TEST_BEGIN();
   he_alloc_pt(&pt);
@@ -1192,9 +1190,8 @@ TEST_END();
 static void test_sqrt()
 {
 TEST_BEGIN();
-  he_pt_t pt;
   he_alloc_pt(&pt);
-  he_ct_t ct_sqrt, ct;
+  he_ct_t ct_sqrt;
   he_alloc_ct(&ct);
   he_alloc_ct(&ct_sqrt);
   he_alloc_evk(&rlk);

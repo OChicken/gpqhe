@@ -18,7 +18,7 @@
 # License along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 CC		 ?= /usr/bin/gcc
-CFLAGS += -Wall -Wextra -Wpedantic -Wredundant-decls -Wpointer-arith -Og -fomit-frame-pointer
+CFLAGS += -Wall -Wextra -Wpedantic -Wredundant-decls -Wshadow -Wpointer-arith -Og -fomit-frame-pointer
 LIBDIR ?= $(ROOT)/lib
 
 all:
