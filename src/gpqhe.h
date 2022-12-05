@@ -152,7 +152,7 @@ void he_conj(he_ct_t *ct, const he_evk_t *ck);
 void he_rot(he_ct_t *ct, const int rot, const he_evk_t *rk);
 
 /* he-algo.c */
-void he_gemv(he_ct_t *ct_dest, _Complex double *A, const he_ct_t *ct, const he_evk_t *rk);
+void he_gemv(he_ct_t *ct_dest, const _Complex double *A, const he_ct_t *ct, const he_evk_t *rk);
 void he_sum(he_ct_t *ct_sum, const he_ct_t *ct, const he_evk_t *rk);
 void he_idx(he_ct_t *ct_sum, const he_ct_t *ct, const unsigned int idx, const he_evk_t *rk);
 void he_nrm2(he_ct_t *ct_nrm2, const he_ct_t *ct, const he_evk_t *rlk, const he_evk_t *ck, const he_evk_t *rk);

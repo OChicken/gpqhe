@@ -1344,7 +1344,7 @@ int main(int argc, char *argv[])
   if (!strcmp(argv[1], "sum"))
     test_sum ();
   if (!strcmp(argv[1], "idx"))
-    test_idx(idx);
+    test_idx();
   if (!strcmp(argv[1], "nrm2"))
     test_nrm2();
   if (!strcmp(argv[1], "inv"))
@@ -1356,7 +1356,7 @@ int main(int argc, char *argv[])
   if (!strcmp(argv[1], "log"))
     test_log();
   if (!strcmp(argv[1], "cmp"))
-    test_cmp(alpha);
+    test_cmp();
   if (!strcmp(argv[1], "coeff2slot"))
     test_coeff2slot();
   if (!strcmp(argv[1], "rlsin"))

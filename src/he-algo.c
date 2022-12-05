@@ -34,17 +34,17 @@ static void zrotdiag(_Complex double rotdiag[], const _Complex double A[],
   for (unsigned int i=0; i<m; i++)
     diag[i] = A[(i%m)*m + (idx+i)%m];
   for (unsigned int i=0; i<m; i++) {
-    int idx = ((int)i+rot)%m;
-    if (idx<0)
-      idx += m;
-    assert(idx>=0);
-    rotdiag[i] = diag[idx];
+    int rotidx = ((int)i+rot)%m;
+    if (rotidx<0)
+      rotidx += m;
+    assert(rotidx>=0);
+    rotdiag[i] = diag[rotidx];
   }
 }
 
 /** gemv: GEneral Matrix Vector multiplication
  * he_ckks_gemv(&ct_Av, A, &ct_v, evk->rot_key, ctx); */
-void he_gemv(he_ct_t *ct_dest, _Complex double *A, const he_ct_t *ct, const he_evk_t *rk)
+void he_gemv(he_ct_t *ct_dest, const _Complex double *A, const he_ct_t *ct, const he_evk_t *rk)
 {
   unsigned int slots = hectx.slots;
   /* plaintext A is of dim slots*slots.  */
