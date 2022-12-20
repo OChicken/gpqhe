@@ -990,7 +990,7 @@ TEST_DO("log(x), x near 1");
     double x = creal(m0[i]);
     mlog[i] = log(1+creal(m0[i]));
     mraw[i] = (x/9)*(9+(9./3)*pow(x,2)+(9./5)*pow(x,4)+(9./7)*pow(x,6)+pow(x,8))
-       +(-x/10)*(10+(10./4)*pow(x,2)+(10./6)*pow(x,4)+(10./8)*pow(x,6)+pow(x,8));
+  +(-x*x/10)*((10./2)+(10./4)*pow(x,2)+(10./6)*pow(x,4)+(10./8)*pow(x,6)+pow(x,8));
     printf("%.10e %.10e \n", creal(m0[i]), creal(mlog[i]));
   }
   CHECK_DIFF(mraw, mlog);
@@ -1272,11 +1272,11 @@ void set_params(int argc, char *argv[])
   if (!strcmp(argv[1], "ecd"))
     return;
   strcpy(key, argv[2]);
-  if ((!strcmp(argv[1], "inv"))
-    ||(!strcmp(argv[1], "sqrt"))
-    ||(!strcmp(argv[1], "exp"))
-    ||(!strcmp(argv[1], "sigmoid"))
+  if ((!strcmp(argv[1], "exp"))
     ||(!strcmp(argv[1], "log"))
+    ||(!strcmp(argv[1], "sigmoid"))
+    ||(!strcmp(argv[1], "inv"))
+    ||(!strcmp(argv[1], "sqrt"))
     ||(!strcmp(argv[1], "cmp"))
     ||(!strcmp(argv[1], "rlsin"))) {
     logq  = 438;
