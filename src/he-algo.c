@@ -340,8 +340,8 @@ void he_log(he_ct_t *ct_log, const he_ct_t *ct, const he_evk_t *rlk)
   he_rs(&cttmp); /* l-2 */
   he_moddown(&cttmp); /* l-3 */
   he_add(&cteven, &cteven, &cttmp); /* (10/4)x^2+(10/6)x^4+(10/8)x^6+x^8 */
-  he_const_pt(&pt, 10);
-  he_addpt(&cteven, &cteven, &pt); /* 10+(10/4)x^2+(10/6)x^4+(10/8)x^6+x^8 */
+  he_const_pt(&pt, 10./2);
+  he_addpt(&cteven, &cteven, &pt); /* (10/2)+(10/4)x^2+(10/6)x^4+(10/8)x^6+x^8 */
   he_const_pt(&pt, -1./10.);
   he_mulpt(&cttmp, &ct2, &pt);
   he_rs(&cttmp); /* l-2 */
