@@ -492,6 +492,8 @@ static void he_cmp_core(he_ct_t *an, const he_ct_t *ct, const he_evk_t *rlk,
     he_rs(&bn);
     he_add(&inv, an, &bn);
     he_inv(&inv, &inv, rlk, iter);
+    for (unsigned int _=0; _<iter+1; _++)
+      he_moddown(an);
     he_mul(an, an, &inv, rlk);
     he_rs(an);
     he_subpt(&bn, an, &one);
@@ -514,7 +516,7 @@ void he_cmp(he_ct_t *ct_cmp, const he_ct_t *ct1, const he_ct_t *ct2, const he_ev
 {
   /* iteration parameters */
   __attribute__((unused)) const unsigned int m = 2;
-  const double c = 1+pow(2,-alpha);
+  const double c = 1+pow(2,-(int)alpha);
   const unsigned int t = log2(alpha/log2(c));
   /* alloc */
   he_ct_t an;
