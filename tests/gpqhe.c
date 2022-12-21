@@ -1041,6 +1041,14 @@ TEST_DONE();
     ma[i] = creal(m0[i])+0.5;
     mb[i] = cimag(m0[i])+0.5;
   }
+  printf("a = ");
+  for (unsigned int i=0; i<slots; i++)
+    printf("%f ", creal(ma[i]));
+  printf("\n");
+  printf("b = ");
+  for (unsigned int i=0; i<slots; i++)
+    printf("%f ", creal(mb[i]));
+  printf("\n");
 
   memcpy(m, m0, sizeof(m0));
 TEST_DO("raw");
@@ -1065,8 +1073,12 @@ TEST_DO("cmp");
   he_show_ct_params(&ct_cmp, "ct_cmp");
   he_dec(&pt, &ct_cmp, &sk);
   he_dcd(m, &pt);
-  for (unsigned int i=0; i<slots; i++)
+  printf("cmp(a,b) = ");
+  for (unsigned int i=0; i<slots; i++) {
+    printf("%f ", creal(m[i]));
     cmp[i] = round(creal(m[i]));
+  }
+  printf("\n");
   for (unsigned int i=0; i<slots; i++)
     ASSERT(cmp[i]==((creal(ma[i])>creal(mb[i]))? 1:0));
 TEST_DONE();
@@ -1283,6 +1295,14 @@ void set_params(int argc, char *argv[])
     slots = 4;
     logDelta = 30;
     iter  = 5;
+  }
+  if (!strcmp(argv[1], "cmp")) {
+    logn     =  15;
+    logq     = 881;
+    slots    =   4;
+    logDelta =  30;
+    iter     =   5;
+    alpha    =   2;
   }
   unsigned int argidx=3; /* start index of parameter chosen */
   while (argv[argidx]) {
