@@ -1284,6 +1284,20 @@ void set_params(int argc, char *argv[])
   if (!strcmp(argv[1], "ecd"))
     return;
   strcpy(key, argv[2]);
+  if ((!strcmp(argv[1], "enc"))
+    ||(!strcmp(argv[1], "add"))
+    ||(!strcmp(argv[1], "mul"))
+    ||(!strcmp(argv[1], "conj"))
+    ||(!strcmp(argv[1], "rot"))
+    ||(!strcmp(argv[1], "gemv"))
+    ||(!strcmp(argv[1], "sum"))
+    ||(!strcmp(argv[1], "idx"))
+    ||(!strcmp(argv[1], "nrm2"))) {
+    logn     =  14; /*  12 */
+    logq     = 438; /* 109 */
+    slots    =  16; /*   4 */
+    logDelta =  50; /*  30 */
+  }
   if ((!strcmp(argv[1], "exp"))
     ||(!strcmp(argv[1], "log"))
     ||(!strcmp(argv[1], "sigmoid"))
@@ -1291,11 +1305,14 @@ void set_params(int argc, char *argv[])
     ||(!strcmp(argv[1], "sqrt"))
     ||(!strcmp(argv[1], "cmp"))
     ||(!strcmp(argv[1], "rlsin"))) {
+    logn = 14;
     logq  = 438;
     slots = 4;
     logDelta = 30;
     iter  = 5;
   }
+  if (!strcmp(argv[1], "sqrt"))
+    iter = 6;
   if (!strcmp(argv[1], "cmp")) {
     logn     =  15;
     logq     = 881;
@@ -1330,11 +1347,6 @@ void set_params(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
   MPI q = mpi_set_ui(NULL, 1);
-  /* default params */
-  logn = 14;
-  logq = 220;
-  logDelta = 50;
-  slots = 64;
   set_params(argc, argv);
   mpi_lshift(q, q, logq);
   Delta = 1UL<<logDelta;
